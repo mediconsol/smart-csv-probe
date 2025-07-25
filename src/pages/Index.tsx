@@ -3,6 +3,7 @@ import { FileUpload } from '@/components/FileUpload';
 import { DataPreview } from '@/components/DataPreview';
 import { QueryBuilder } from '@/components/QueryBuilder';
 import { ChartVisualization } from '@/components/ChartVisualization';
+import { QueryResultViewer } from '@/components/QueryResultViewer';
 import { SummaryReport } from '@/components/SummaryReport';
 import { DataPrivacyNotice } from '@/components/DataPrivacyNotice';
 import { Footer } from '@/components/Footer';
@@ -12,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MediconsolLogo } from '@/components/ui/icons/MediconsolLogo';
 import { Sparkles, Database, BarChart3, Search, FileText, Calculator } from 'lucide-react';
 import { parseCSVFile, generateSampleData, executeQuery, ParsedData } from '@/utils/csvProcessor';
+import { transformQueryResultToChartData, generateChartTitle } from '@/utils/chartDataTransformer';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
@@ -19,6 +21,7 @@ const Index = () => {
   const [fileName, setFileName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [queryResult, setQueryResult] = useState<any[]>([]);
+  const [lastExecutedQuery, setLastExecutedQuery] = useState<string>('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [summaryData, setSummaryData] = useState<any[] | null>(null);
   const { toast } = useToast();
@@ -53,17 +56,21 @@ const Index = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       const result = executeQuery(data, query);
       setQueryResult(result);
+      setLastExecutedQuery(query);
       
       toast({
         title: "쿼리 실행 완료",
         description: `${result.length}개의 결과를 반환했습니다.`,
       });
     } catch (error) {
+      console.error('Query execution error:', error);
       toast({
         title: "쿼리 실행 오류",
-        description: "쿼리 실행 중 오류가 발생했습니다.",
+        description: error instanceof Error ? error.message : "쿼리 실행 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+      setQueryResult([]);
+      setLastExecutedQuery('');
     } finally {
       setIsExecuting(false);
     }
@@ -250,42 +257,45 @@ const Index = () => {
                 isExecuting={isExecuting}
               />
               
-              {queryResult.length > 0 && (
+              {(queryResult.length > 0 || isExecuting) && (
                 <div className="mt-6 space-y-6">
-                  <Tabs defaultValue="table" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="table">
-                        <Database className="w-4 h-4 mr-2" />
-                        테이블 보기
-                      </TabsTrigger>
-                      <TabsTrigger value="chart">
-                        <BarChart3 className="w-4 h-4 mr-2" />
-                        차트 보기
-                      </TabsTrigger>
-                    </TabsList>
+                  {isExecuting ? (
+                    <Card className="shadow-card">
+                      <CardContent className="p-8 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                          <p className="text-muted-foreground">쿼리를 실행하고 있습니다...</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Tabs defaultValue="table" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="table">
+                          <Database className="w-4 h-4 mr-2" />
+                          테이블 보기
+                        </TabsTrigger>
+                        <TabsTrigger value="chart">
+                          <BarChart3 className="w-4 h-4 mr-2" />
+                          차트 보기
+                        </TabsTrigger>
+                      </TabsList>
 
-                    <TabsContent value="table">
-                      <Card className="shadow-card">
-                        <CardHeader>
-                          <CardTitle>쿼리 결과</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="bg-muted/30 rounded-lg p-4">
-                            <pre className="text-sm overflow-auto">
-                              {JSON.stringify(queryResult, null, 2)}
-                            </pre>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                      <TabsContent value="table">
+                        <QueryResultViewer 
+                          queryResult={queryResult}
+                          originalQuery={lastExecutedQuery}
+                        />
+                      </TabsContent>
 
-                    <TabsContent value="chart">
-                      <ChartVisualization 
-                        data={queryResult}
-                        title="쿼리 결과 시각화"
-                      />
-                    </TabsContent>
-                  </Tabs>
+                      <TabsContent value="chart">
+                        <ChartVisualization 
+                          data={transformQueryResultToChartData(queryResult)}
+                          title={generateChartTitle(queryResult, lastExecutedQuery)}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  )}
                 </div>
               )}
             </TabsContent>
