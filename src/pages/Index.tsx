@@ -4,9 +4,11 @@ import { DataPreview } from '@/components/DataPreview';
 import { QueryBuilder } from '@/components/QueryBuilder';
 import { ChartVisualization } from '@/components/ChartVisualization';
 import { SummaryReport } from '@/components/SummaryReport';
+import { Footer } from '@/components/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MediconsolLogo } from '@/components/ui/icons/MediconsolLogo';
 import { Sparkles, Database, BarChart3, Search, FileText, Calculator } from 'lucide-react';
 import { parseCSVFile, generateSampleData, executeQuery, ParsedData } from '@/utils/csvProcessor';
 import { useToast } from '@/hooks/use-toast';
@@ -127,12 +129,10 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-primary">
-                <Database className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <MediconsolLogo size={48} />
               <div>
-                <h1 className="text-2xl font-bold">CSV 분석 프로그램</h1>
-                <p className="text-sm text-muted-foreground">데이터 업로드, 분석, 시각화가 가능한 통합 플랫폼</p>
+                <h1 className="text-2xl font-bold">메디콘솔</h1>
+                <p className="text-sm text-muted-foreground">의료 데이터 분석 플랫폼 • mediconsol.co.kr</p>
               </div>
             </div>
             
@@ -153,12 +153,15 @@ const Index = () => {
           /* 초기 화면 */
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
+              <div className="flex justify-center mb-6">
+                <MediconsolLogo size={80} />
+              </div>
               <h2 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
-                데이터 분석의 새로운 경험
+                의료 데이터 분석의 새로운 표준
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                CSV 파일을 업로드하여 즉시 데이터를 분석하고, AI 도움을 받아 인사이트를 발견하세요. 
-                복잡한 설정 없이 바로 시작할 수 있습니다.
+                메디콘솔과 함께 의료 데이터를 쉽고 빠르게 분석하세요. 
+                CSV 파일을 업로드하여 즉시 인사이트를 발견하고, AI 도움을 받아 더 깊이있는 분석이 가능합니다.
               </p>
             </div>
 
@@ -169,9 +172,9 @@ const Index = () => {
                   <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-data flex items-center justify-center">
                     <FileText className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-2">즉시 데이터 분석</h3>
+                  <h3 className="font-semibold mb-2">의료 데이터 전문 분석</h3>
                   <p className="text-sm text-muted-foreground">
-                    CSV 파일을 드래그 앤 드롭으로 업로드하여 즉시 데이터 구조와 통계를 확인하세요
+                    환자 데이터, 진료 기록, 임상시험 결과 등 다양한 의료 데이터를 안전하고 정확하게 분석합니다
                   </p>
                 </CardContent>
               </Card>
@@ -181,9 +184,9 @@ const Index = () => {
                   <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-chart flex items-center justify-center">
                     <BarChart3 className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-2">강력한 시각화</h3>
+                  <h3 className="font-semibold mb-2">직관적 시각화</h3>
                   <p className="text-sm text-muted-foreground">
-                    다양한 차트와 그래프로 데이터 패턴을 한눈에 파악할 수 있습니다
+                    의료진이 이해하기 쉬운 차트와 그래프로 진료 패턴과 트렌드를 명확하게 제시합니다
                   </p>
                 </CardContent>
               </Card>
@@ -193,9 +196,9 @@ const Index = () => {
                   <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
                     <Search className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-2">SQL 쿼리 지원</h3>
+                  <h3 className="font-semibold mb-2">고급 분석 도구</h3>
                   <p className="text-sm text-muted-foreground">
-                    SQL 쿼리로 복잡한 데이터 분석과 필터링을 자유롭게 수행하세요
+                    SQL 쿼리와 AI 분석으로 임상 데이터에서 의미있는 인사이트를 추출합니다
                   </p>
                 </CardContent>
               </Card>
@@ -340,6 +343,8 @@ const Index = () => {
           </Tabs>
         )}
       </div>
+      
+      <Footer />
     </div>
   );
 };
