@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ChartVisualization } from '@/components/ChartVisualization';
 import { BarChart3, Download, RefreshCw, Calculator, PieChart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,6 +15,7 @@ interface SummaryReportProps {
     rows: any[];
     totalRows: number;
   };
+  onSummaryDataChange?: (summaryData: any[] | null) => void;
 }
 
 interface SummaryData {
@@ -27,7 +29,7 @@ interface SummaryData {
   }>;
 }
 
-export function SummaryReport({ data }: SummaryReportProps) {
+export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps) {
   const [selectedGroupColumn, setSelectedGroupColumn] = useState<string>('');
   const [selectedValueColumn, setSelectedValueColumn] = useState<string>('');
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
@@ -47,6 +49,15 @@ export function SummaryReport({ data }: SummaryReportProps) {
       return;
     }
 
+    if (data.rows.length === 0) {
+      toast({
+        title: "데이터가 없습니다",
+        description: "분석할 데이터가 없습니다. 먼저 CSV 파일을 업로드해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsCalculating(true);
     
     try {
@@ -54,8 +65,25 @@ export function SummaryReport({ data }: SummaryReportProps) {
       
       // 데이터 그룹화 및 집계
       const grouped = data.rows.reduce((acc, row) => {
-        const category = row[selectedGroupColumn] || '미분류';
-        const value = selectedValueColumn && selectedValueColumn !== 'count_only' ? parseFloat(row[selectedValueColumn]) || 0 : 1;
+        const category = String(row[selectedGroupColumn] || '미분류');
+        
+        // 값 검증 및 변환
+        let value = 1;
+        if (selectedValueColumn && selectedValueColumn !== 'count_only') {
+          const rawValue = row[selectedValueColumn];
+          if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+            const numericValue = Number(rawValue);
+            if (!isNaN(numericValue) && isFinite(numericValue)) {
+              value = numericValue;
+            } else {
+              // 숫자가 아닌 값은 경고하고 0으로 처리
+              console.warn(`Invalid numeric value: ${rawValue} in column ${selectedValueColumn}`);
+              value = 0;
+            }
+          } else {
+            value = 0;
+          }
+        }
         
         if (!acc[category]) {
           acc[category] = {
@@ -70,24 +98,34 @@ export function SummaryReport({ data }: SummaryReportProps) {
         acc[category].values.push(value);
         
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, {count: number; sum: number; values: number[]}>);
 
-      // 총합 계산
-      const totalSum = Object.values(grouped).reduce((sum: number, group: any) => sum + group.sum, 0);
+      // 총합 계산 (타입 안전성 보장)
+      const groupedValues = Object.values(grouped) as Array<{count: number; sum: number; values: number[]}>;
+      const totalSum = groupedValues.reduce((sum, group) => {
+        return sum + group.sum;
+      }, 0);
 
-      // 결과 정리
-      const summaryValues = Object.entries(grouped).map(([category, group]: [string, any]) => ({
+      // 결과 정리 (타입 안전성 보장)
+      const summaryValues = Object.entries(grouped).map(([category, group]: [string, {count: number; sum: number; values: number[]}]) => ({
         category,
         count: group.count,
         sum: group.sum,
-        avg: group.sum / group.count,
+        avg: group.count > 0 ? group.sum / group.count : 0,
         percentage: totalSum > 0 ? (group.sum / totalSum) * 100 : 0
       })).sort((a, b) => b.sum - a.sum);
 
-      setSummaryData({
+      const newSummaryData = {
         groupBy: selectedGroupColumn,
         values: summaryValues
-      });
+      };
+
+      setSummaryData(newSummaryData);
+      
+      // 부모 컴포넌트에 데이터 전달 (시각화용)
+      if (onSummaryDataChange) {
+        onSummaryDataChange(summaryValues);
+      }
 
       toast({
         title: "집계 완료",
@@ -279,16 +317,16 @@ export function SummaryReport({ data }: SummaryReportProps) {
           </TabsContent>
 
           <TabsContent value="chart">
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle>항목별 분포 차트</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center bg-muted/30 rounded-lg">
-                  <p className="text-muted-foreground">차트 구현 예정</p>
-                </div>
-              </CardContent>
-            </Card>
+            <ChartVisualization 
+              data={summaryData.values.map(item => ({
+                name: item.category,
+                value: selectedValueColumn && selectedValueColumn !== 'count_only' ? item.sum : item.count,
+                count: item.count,
+                avg: item.avg,
+                percentage: item.percentage
+              }))}
+              title={`${summaryData.groupBy}별 ${selectedValueColumn && selectedValueColumn !== 'count_only' ? '합계' : '건수'} 분포`}
+            />
           </TabsContent>
 
           <TabsContent value="statistics">

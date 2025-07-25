@@ -17,6 +17,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [queryResult, setQueryResult] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [summaryData, setSummaryData] = useState<any[] | null>(null);
   const { toast } = useToast();
 
   const handleFileSelect = async (file: File) => {
@@ -93,12 +94,31 @@ const Index = () => {
     setData(updatedData);
   };
 
-  const chartData = queryResult.length > 0 && queryResult[0].name ? 
-    queryResult : 
-    data?.rows.slice(0, 10).map((row, index) => ({
+  // 차트 데이터 우선순위: 합계 보고서 -> 쿼리 결과 -> 기본 데이터
+  const getChartData = () => {
+    if (summaryData && summaryData.length > 0) {
+      // 합계 보고서 데이터를 차트 형식으로 변환
+      return summaryData.map(item => ({
+        name: item.category || item.name,
+        value: item.sum || item.count || item.value,
+        count: item.count,
+        avg: item.avg,
+        percentage: item.percentage
+      }));
+    }
+    
+    if (queryResult.length > 0 && queryResult[0].name) {
+      return queryResult;
+    }
+    
+    // 기본 데이터 (샘플)
+    return data?.rows.slice(0, 10).map((row, index) => ({
       name: row.name || `항목 ${index + 1}`,
       value: parseInt(row.salary) || Math.random() * 1000
     })) || [];
+  };
+
+  const chartData = getChartData();
 
   return (
     <div className="min-h-screen bg-background">
@@ -227,31 +247,56 @@ const Index = () => {
               />
               
               {queryResult.length > 0 && (
-                <div className="mt-6">
-                  <Card className="shadow-card">
-                    <CardHeader>
-                      <CardTitle>쿼리 결과</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <pre className="text-sm overflow-auto">
-                          {JSON.stringify(queryResult, null, 2)}
-                        </pre>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <div className="mt-6 space-y-6">
+                  <Tabs defaultValue="table" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="table">
+                        <Database className="w-4 h-4 mr-2" />
+                        테이블 보기
+                      </TabsTrigger>
+                      <TabsTrigger value="chart">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        차트 보기
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="table">
+                      <Card className="shadow-card">
+                        <CardHeader>
+                          <CardTitle>쿼리 결과</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="bg-muted/30 rounded-lg p-4">
+                            <pre className="text-sm overflow-auto">
+                              {JSON.stringify(queryResult, null, 2)}
+                            </pre>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="chart">
+                      <ChartVisualization 
+                        data={queryResult}
+                        title="쿼리 결과 시각화"
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
             </TabsContent>
 
             <TabsContent value="summary">
-              <SummaryReport data={data} />
+              <SummaryReport 
+                data={data} 
+                onSummaryDataChange={setSummaryData}
+              />
             </TabsContent>
 
             <TabsContent value="charts">
               <ChartVisualization 
                 data={chartData}
-                title="데이터 시각화"
+                title={summaryData ? "합계 보고서 시각화" : "데이터 시각화"}
               />
             </TabsContent>
 

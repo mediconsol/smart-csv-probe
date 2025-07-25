@@ -9,7 +9,10 @@ import { BarChart3, TrendingUp, PieChart as PieChartIcon, Activity } from 'lucid
 interface ChartData {
   name: string;
   value: number;
-  [key: string]: string | number;
+  count?: number;
+  avg?: number;
+  percentage?: number;
+  [key: string]: string | number | undefined;
 }
 
 interface ChartVisualizationProps {
@@ -18,6 +21,15 @@ interface ChartVisualizationProps {
 }
 
 export function ChartVisualization({ data, title }: ChartVisualizationProps) {
+  // 데이터 유효성 검사 및 정제
+  const validData = data.filter(item => 
+    item && 
+    item.name && 
+    typeof item.value === 'number' && 
+    !isNaN(item.value) && 
+    isFinite(item.value)
+  );
+
   const colors = [
     'hsl(var(--data-blue))',
     'hsl(var(--data-purple))',
@@ -28,14 +40,22 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const dataPoint = validData.find(item => item.name === label);
       return (
-        <div className="bg-card border border-border/50 rounded-lg p-3 shadow-card">
-          <p className="font-medium">{label}</p>
+        <div className="bg-card border border-border/50 rounded-lg p-3 shadow-card min-w-[200px]">
+          <p className="font-medium mb-2">{label || '항목'}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }}>
-              {entry.name}: {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+            <p key={index} style={{ color: entry.color }} className="text-sm">
+              {entry.name}: {typeof entry.value === 'number' ? entry.value.toLocaleString() : (entry.value || 'N/A')}
             </p>
           ))}
+          {dataPoint && (
+            <div className="mt-2 pt-2 border-t border-border/30 text-xs text-muted-foreground">
+              {dataPoint.count && <p>건수: {dataPoint.count.toLocaleString()}개</p>}
+              {dataPoint.avg && <p>평균: {dataPoint.avg.toFixed(2)}</p>}
+              {dataPoint.percentage && <p>비율: {dataPoint.percentage.toFixed(1)}%</p>}
+            </div>
+          )}
         </div>
       );
     }
@@ -51,29 +71,40 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="bar" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="bar" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              막대형
-            </TabsTrigger>
-            <TabsTrigger value="line" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              선형
-            </TabsTrigger>
-            <TabsTrigger value="area" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              영역형
-            </TabsTrigger>
-            <TabsTrigger value="pie" className="flex items-center gap-2">
-              <PieChartIcon className="w-4 h-4" />
-              원형
-            </TabsTrigger>
-          </TabsList>
+        {validData.length === 0 ? (
+          <div className="h-64 flex items-center justify-center bg-muted/30 rounded-lg">
+            <div className="text-center">
+              <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">시각화할 데이터가 없습니다</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                합계 보고서를 실행하거나 데이터를 업로드해주세요
+              </p>
+            </div>
+          </div>
+        ) : (
+          <Tabs defaultValue="bar" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="bar" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                막대형
+              </TabsTrigger>
+              <TabsTrigger value="line" className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                선형
+              </TabsTrigger>
+              <TabsTrigger value="area" className="flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                영역형
+              </TabsTrigger>
+              <TabsTrigger value="pie" className="flex items-center gap-2">
+                <PieChartIcon className="w-4 h-4" />
+                원형
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="bar" className="mt-6">
             <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={data}>
+              <BarChart data={validData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="name" 
@@ -102,7 +133,7 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
 
           <TabsContent value="line" className="mt-6">
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={data}>
+              <LineChart data={validData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="name" 
@@ -128,7 +159,7 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
 
           <TabsContent value="area" className="mt-6">
             <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={data}>
+              <AreaChart data={validData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="name" 
@@ -161,7 +192,7 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
             <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
-                  data={data.slice(0, 5)} // 상위 5개만 표시
+                  data={validData.slice(0, 5)} // 상위 5개만 표시
                   cx="50%"
                   cy="50%"
                   outerRadius={120}
@@ -169,7 +200,7 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
                 >
-                  {data.slice(0, 5).map((entry, index) => (
+                  {validData.slice(0, 5).map((_, index) => (
                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                   ))}
                 </Pie>
@@ -179,6 +210,7 @@ export function ChartVisualization({ data, title }: ChartVisualizationProps) {
             </ResponsiveContainer>
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );
