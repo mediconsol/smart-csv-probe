@@ -4,6 +4,7 @@ import { DataPreview } from '@/components/DataPreview';
 import { QueryBuilder } from '@/components/QueryBuilder';
 import { ChartVisualization } from '@/components/ChartVisualization';
 import { SummaryReport } from '@/components/SummaryReport';
+import { DataPrivacyNotice } from '@/components/DataPrivacyNotice';
 import { Footer } from '@/components/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -344,6 +345,7 @@ const Index = () => {
         )}
       </div>
       
+      <DataPrivacyNotice />
       <Footer />
     </div>
   );
