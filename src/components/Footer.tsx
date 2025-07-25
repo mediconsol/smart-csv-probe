@@ -59,20 +59,20 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">회사 정보</h4>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>메디콘솔 주식회사</p>
-              <p>사업자등록번호: 123-45-67890</p>
-              <p>대표이사: 홍길동</p>
-              <p>주소: 서울특별시 강남구<br />테헤란로 123, 456호</p>
+              <p>메디콘솔 | 주식회사 비아토</p>
+              <p>Mobile: 010-4308-0076</p>
+              <p>Email: admin@mediconsol.com</p>
+              <p>Consolist: 채원덕 소장</p>
             </div>
           </div>
         </div>
 
         {/* 하단 구분선 및 저작권 */}
         <div className="border-t border-border/30 mt-8 pt-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-col items-center justify-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-4">
-              <span>© 2024 메디콘솔. All rights reserved.</span>
-              <span className="hidden md:inline">|</span>
+              <span>© 2025 메디콘솔. All rights reserved.</span>
+              <span>|</span>
               <span>mediconsol.co.kr</span>
             </div>
             <div className="flex items-center gap-4">
