@@ -7,9 +7,10 @@ import { QueryResultViewer } from '@/components/QueryResultViewer';
 import { SummaryReport } from '@/components/SummaryReport';
 import { DataPrivacyNotice } from '@/components/DataPrivacyNotice';
 import { Footer } from '@/components/Footer';
+import { AIInsights } from '@/components/AIInsights';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { MediconsolLogo } from '@/components/ui/icons/MediconsolLogo';
 import { Sparkles, Database, BarChart3, Search, FileText, Calculator } from 'lucide-react';
 import { parseCSVFile, generateSampleData, executeQuery, ParsedData } from '@/utils/csvProcessor';
@@ -52,9 +53,8 @@ const Index = () => {
     
     setIsExecuting(true);
     try {
-      // 쿼리 실행 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const result = executeQuery(data, query);
+      // 실제 SQL 쿼리 실행
+      const result = await executeQuery(data, query);
       setQueryResult(result);
       setLastExecutedQuery(query);
       
@@ -315,41 +315,7 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="insights">
-              <Card className="shadow-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    AI 데이터 인사이트
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-gradient-data text-white">
-                      <h4 className="font-semibold mb-2">📊 데이터 품질 분석</h4>
-                      <p className="text-sm opacity-90">
-                        데이터에서 {data.totalRows}개의 레코드를 분석했습니다. 
-                        모든 필수 필드가 채워져 있으며 데이터 품질이 우수합니다.
-                      </p>
-                    </div>
-                    
-                    <div className="p-4 rounded-lg bg-gradient-chart text-white">
-                      <h4 className="font-semibold mb-2">🔍 패턴 발견</h4>
-                      <p className="text-sm opacity-90">
-                        급여 데이터에서 지역별 차이가 발견되었습니다. 
-                        서울과 부산 지역의 평균 급여가 다른 지역보다 높은 경향을 보입니다.
-                      </p>
-                    </div>
-                    
-                    <div className="p-4 rounded-lg bg-gradient-primary text-white">
-                      <h4 className="font-semibold mb-2">💡 추천 분석</h4>
-                      <p className="text-sm opacity-90">
-                        연령대별 급여 분포를 분석해보세요. 
-                        또한 입사일자를 기준으로 한 트렌드 분석도 유용할 것 같습니다.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <AIInsights data={data} />
             </TabsContent>
           </Tabs>
         )}

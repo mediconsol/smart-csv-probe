@@ -49,6 +49,10 @@ export function AIQueryAssistant({ columns, onQueryGenerated }: AIQueryAssistant
 테이블명: data
 컬럼: ${columnInfo}
 
+**중요 안내:**
+- 컬럼명에 특수문자나 공백이 있는 경우 반드시 따옴표로 감싸서 사용하세요 (예: "컬럼 이름", "special/column")
+- 모든 컬럼명을 안전하게 따옴표로 감싸는 것을 권장합니다
+
 **사용자 요청:**
 ${userRequest}
 
@@ -64,7 +68,7 @@ ${userRequest}
 SQL 쿼리만 반환하세요. 설명이나 다른 텍스트는 포함하지 마세요.
 `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,12 +194,58 @@ SQL 쿼리만 반환하세요. 설명이나 다른 텍스트는 포함하지 마
     });
   };
 
-  const sampleRequests = [
-    "나이가 30세 이상인 환자들의 평균 혈압을 구해주세요",
-    "진료과별 환자 수를 많은 순으로 정렬해주세요", 
-    "최근 6개월간 입원 환자 현황을 월별로 보여주세요",
-    "특정 질병 코드가 있는 환자들의 평균 재원일수를 계산해주세요"
-  ];
+  // 데이터 기반 분석 제안 생성
+  const generateSmartSuggestions = (): string[] => {
+    const suggestions: string[] = [];
+    const numericColumns = columns.filter(col => col.type === 'number' || col.type === 'numeric');
+    const textColumns = columns.filter(col => col.type === 'string' || col.type === 'text');
+    const dateColumns = columns.filter(col => col.type === 'date');
+
+    // 숫자 컬럼 기반 분석 제안
+    if (numericColumns.length > 0) {
+      const numCol = numericColumns[0].name;
+      suggestions.push(`${numCol}의 평균, 최대값, 최소값을 계산해주세요`);
+      
+      if (numericColumns.length > 1) {
+        const numCol2 = numericColumns[1].name;
+        suggestions.push(`${numCol}와 ${numCol2}의 상관관계를 분석해주세요`);
+      }
+    }
+
+    // 텍스트 컬럼 기반 분석 제안
+    if (textColumns.length > 0) {
+      const textCol = textColumns[0].name;
+      suggestions.push(`${textCol}별 데이터 분포를 개수 순으로 보여주세요`);
+      
+      if (numericColumns.length > 0) {
+        suggestions.push(`${textCol}별 ${numericColumns[0].name}의 평균을 계산해주세요`);
+      }
+    }
+
+    // 날짜 컬럼 기반 분석 제안
+    if (dateColumns.length > 0) {
+      const dateCol = dateColumns[0].name;
+      suggestions.push(`${dateCol}를 기준으로 월별 데이터 추이를 보여주세요`);
+    }
+
+    // 다중 컬럼 조합 분석
+    if (textColumns.length >= 2) {
+      suggestions.push(`${textColumns[0].name}와 ${textColumns[1].name}의 교차 분석을 해주세요`);
+    }
+
+    // 데이터 품질 분석
+    suggestions.push(`결측값(NULL)이 있는 컬럼들을 찾아주세요`);
+    suggestions.push(`중복된 레코드가 있는지 확인해주세요`);
+
+    // 상위/하위 분석
+    if (numericColumns.length > 0 && textColumns.length > 0) {
+      suggestions.push(`${numericColumns[0].name}이 높은 상위 10개 ${textColumns[0].name}을 보여주세요`);
+    }
+
+    return suggestions.slice(0, 6); // 최대 6개까지만 표시
+  };
+
+  const sampleRequests = generateSmartSuggestions();
 
   return (
     <Card className="shadow-card">
@@ -222,21 +272,33 @@ SQL 쿼리만 반환하세요. 설명이나 다른 텍스트는 포함하지 마
           </div>
         </div>
 
-        {/* 샘플 요청 */}
+        {/* 스마트 분석 제안 */}
         <div>
-          <h4 className="text-sm font-medium mb-2">샘플 요청:</h4>
+          <h4 className="text-sm font-medium mb-2">
+            🧠 데이터 기반 분석 제안:
+            <span className="text-xs text-muted-foreground ml-2">
+              (현재 데이터에 최적화된 분석)
+            </span>
+          </h4>
           <div className="grid grid-cols-1 gap-2">
-            {sampleRequests.map((request, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                size="sm"
-                className="justify-start text-left h-auto p-2 text-xs"
-                onClick={() => setUserRequest(request)}
-              >
-                💡 {request}
-              </Button>
-            ))}
+            {sampleRequests.length > 0 ? (
+              sampleRequests.map((request, index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start text-left h-auto p-2 text-xs hover:bg-gradient-data/10"
+                  onClick={() => setUserRequest(request)}
+                >
+                  <span className="mr-2">🔍</span>
+                  {request}
+                </Button>
+              ))
+            ) : (
+              <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded">
+                데이터를 분석하여 맞춤형 제안을 생성할 수 없습니다.
+              </div>
+            )}
           </div>
         </div>
 

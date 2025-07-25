@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,8 +31,8 @@ interface SummaryData {
 }
 
 export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps) {
-  const [selectedGroupColumn, setSelectedGroupColumn] = useState<string>('');
-  const [selectedValueColumn, setSelectedValueColumn] = useState<string>('');
+  const [selectedGroupColumns, setSelectedGroupColumns] = useState<string[]>([]);
+  const [selectedValueColumns, setSelectedValueColumns] = useState<string[]>([]);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const { toast } = useToast();
@@ -39,11 +40,28 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
   const textColumns = data.columns.filter(col => col.type === 'string' || col.type === 'text');
   const numericColumns = data.columns.filter(col => col.type === 'number' || col.type === 'numeric');
 
+  // 체크박스 핸들러
+  const handleGroupColumnChange = (columnName: string, checked: boolean) => {
+    if (checked) {
+      setSelectedGroupColumns(prev => [...prev, columnName]);
+    } else {
+      setSelectedGroupColumns(prev => prev.filter(col => col !== columnName));
+    }
+  };
+
+  const handleValueColumnChange = (columnName: string, checked: boolean) => {
+    if (checked) {
+      setSelectedValueColumns(prev => [...prev, columnName]);
+    } else {
+      setSelectedValueColumns(prev => prev.filter(col => col !== columnName));
+    }
+  };
+
   const calculateSummary = async () => {
-    if (!selectedGroupColumn) {
+    if (selectedGroupColumns.length === 0) {
       toast({
         title: "그룹 컬럼을 선택해주세요",
-        description: "항목별 분류를 위한 컬럼을 선택해야 합니다.",
+        description: "항목별 분류를 위한 컬럼을 최소 1개 선택해야 합니다.",
         variant: "destructive"
       });
       return;
@@ -63,76 +81,110 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
     try {
       await new Promise(resolve => setTimeout(resolve, 500)); // 계산 시뮬레이션
       
-      // 데이터 그룹화 및 집계
+      // 다중 컬럼 그룹화
       const grouped = data.rows.reduce((acc, row) => {
-        const category = String(row[selectedGroupColumn] || '미분류');
+        // 다중 그룹 키 생성 (예: "서울|개발팀")
+        const groupKey = selectedGroupColumns
+          .map(col => String(row[col] || '미분류'))
+          .join(' | ');
         
-        // 값 검증 및 변환
-        let value = 1;
-        if (selectedValueColumn && selectedValueColumn !== 'count_only') {
-          const rawValue = row[selectedValueColumn];
+        if (!acc[groupKey]) {
+          acc[groupKey] = {
+            count: 0,
+            columnValues: {}, // 각 값 컬럼별 합계
+            groupDetails: selectedGroupColumns.map(col => ({
+              column: col,
+              value: String(row[col] || '미분류')
+            }))
+          };
+          
+          // 값 컬럼 초기화
+          selectedValueColumns.forEach(col => {
+            acc[groupKey].columnValues[col] = {
+              sum: 0,
+              values: []
+            };
+          });
+        }
+        
+        acc[groupKey].count += 1;
+        
+        // 각 값 컬럼별 집계
+        selectedValueColumns.forEach(col => {
+          const rawValue = row[col];
+          let value = 0;
+          
           if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
             const numericValue = Number(rawValue);
             if (!isNaN(numericValue) && isFinite(numericValue)) {
               value = numericValue;
-            } else {
-              // 숫자가 아닌 값은 경고하고 0으로 처리
-              console.warn(`Invalid numeric value: ${rawValue} in column ${selectedValueColumn}`);
-              value = 0;
             }
-          } else {
-            value = 0;
           }
-        }
-        
-        if (!acc[category]) {
-          acc[category] = {
-            count: 0,
-            sum: 0,
-            values: []
-          };
-        }
-        
-        acc[category].count += 1;
-        acc[category].sum += value;
-        acc[category].values.push(value);
+          
+          acc[groupKey].columnValues[col].sum += value;
+          acc[groupKey].columnValues[col].values.push(value);
+        });
         
         return acc;
-      }, {} as Record<string, {count: number; sum: number; values: number[]}>);
+      }, {} as Record<string, any>);
 
-      // 총합 계산 (타입 안전성 보장)
-      const groupedValues = Object.values(grouped) as Array<{count: number; sum: number; values: number[]}>;
-      const totalSum = groupedValues.reduce((sum, group) => {
-        return sum + group.sum;
-      }, 0);
+      // 결과 정리
+      const summaryValues = Object.entries(grouped).map(([groupKey, group]: [string, any]) => {
+        const result: any = {
+          category: groupKey,
+          count: group.count,
+          groupDetails: group.groupDetails
+        };
 
-      // 결과 정리 (타입 안전성 보장)
-      const summaryValues = Object.entries(grouped).map(([category, group]: [string, {count: number; sum: number; values: number[]}]) => ({
-        category,
-        count: group.count,
-        sum: group.sum,
-        avg: group.count > 0 ? group.sum / group.count : 0,
-        percentage: totalSum > 0 ? (group.sum / totalSum) * 100 : 0
-      })).sort((a, b) => b.sum - a.sum);
+        // 각 값 컬럼별 통계 추가
+        if (selectedValueColumns.length > 0) {
+          selectedValueColumns.forEach(col => {
+            const colData = group.columnValues[col];
+            result[`${col}_sum`] = colData.sum;
+            result[`${col}_avg`] = group.count > 0 ? colData.sum / group.count : 0;
+          });
+          
+          // 주요 값 (첫 번째 값 컬럼의 합계)
+          const primaryCol = selectedValueColumns[0];
+          result.sum = group.columnValues[primaryCol]?.sum || group.count;
+          result.avg = group.count > 0 ? result.sum / group.count : 0;
+        } else {
+          // 값 컬럼이 없으면 건수만
+          result.sum = group.count;
+          result.avg = 1;
+        }
+
+        return result;
+      });
+
+      // 백분율 계산
+      const totalSum = summaryValues.reduce((sum, item) => sum + item.sum, 0);
+      summaryValues.forEach(item => {
+        item.percentage = totalSum > 0 ? (item.sum / totalSum) * 100 : 0;
+      });
+
+      // 정렬 (합계 기준)
+      summaryValues.sort((a, b) => b.sum - a.sum);
 
       const newSummaryData = {
-        groupBy: selectedGroupColumn,
+        groupBy: selectedGroupColumns.join(' + '),
         values: summaryValues
       };
 
       setSummaryData(newSummaryData);
       
-      // 부모 컴포넌트에 데이터 전달 (시각화용)
+      // 부모 컴포넌트에 데이터 전달
       if (onSummaryDataChange) {
         onSummaryDataChange(summaryValues);
       }
 
       toast({
         title: "집계 완료",
-        description: `${summaryValues.length}개 항목의 합계가 계산되었습니다.`,
+        description: `${summaryValues.length}개 항목의 합계가 계산되었습니다. (그룹: ${selectedGroupColumns.length}개, 값: ${selectedValueColumns.length}개)`,
       });
 
     } catch (error) {
+      console.error('Summary calculation error:', error);
       toast({
         title: "계산 오류",
         description: "데이터 집계 중 오류가 발생했습니다.",
@@ -146,30 +198,41 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
   const exportToCSV = () => {
     if (!summaryData) return;
 
+    // 헤더 생성
+    const headers = ['항목', '건수'];
+    selectedValueColumns.forEach(col => {
+      headers.push(`${col} 합계`, `${col} 평균`);
+    });
+    headers.push('비율(%)');
+
+    // 데이터 행 생성
     const csvContent = [
-      ['항목', '건수', '합계', '평균', '비율(%)'].join(','),
-      ...summaryData.values.map(item => [
-        item.category,
-        item.count,
-        item.sum.toFixed(2),
-        item.avg.toFixed(2),
-        item.percentage.toFixed(1)
-      ].join(','))
+      headers.join(','),
+      ...summaryData.values.map(item => {
+        const row = [item.category, item.count];
+        selectedValueColumns.forEach(col => {
+          row.push(
+            (item[`${col}_sum`] || 0).toFixed(2),
+            (item[`${col}_avg`] || 0).toFixed(2)
+          );
+        });
+        row.push(item.percentage.toFixed(1));
+        return row.join(',');
+      })
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${summaryData.groupBy}_summary_report.csv`;
+    link.download = `${summaryData.groupBy.replace(/[^a-zA-Z0-9]/g, '_')}_summary_report.csv`;
     link.click();
 
     toast({
       title: "내보내기 완료",
-      description: "합계 보고서가 CSV 파일로 다운로드되었습니다.",
+      description: "다중 컬럼 합계 보고서가 CSV 파일로 다운로드되었습니다.",
     });
   };
 
-  const totalSum = summaryData?.values.reduce((sum, item) => sum + item.sum, 0) || 0;
   const totalCount = summaryData?.values.reduce((sum, item) => sum + item.count, 0) || 0;
 
   return (
@@ -183,50 +246,108 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">그룹 기준 컬럼 *</label>
-              <Select value={selectedGroupColumn} onValueChange={setSelectedGroupColumn}>
-                <SelectTrigger>
-                  <SelectValue placeholder="분류 기준 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {textColumns.map((column) => (
-                    <SelectItem key={column.name} value={column.name}>
-                      {column.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 그룹 기준 컬럼 선택 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">그룹 기준 컬럼 *</label>
+                <Badge variant="outline" className="text-xs">
+                  {selectedGroupColumns.length}개 선택됨
+                </Badge>
+              </div>
+              <div className="border rounded-lg p-3 max-h-40 overflow-y-auto">
+                {textColumns.length > 0 ? (
+                  <div className="space-y-2">
+                    {textColumns.map((column) => (
+                      <div key={column.name} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`group-${column.name}`}
+                          checked={selectedGroupColumns.includes(column.name)}
+                          onCheckedChange={(checked) => 
+                            handleGroupColumnChange(column.name, checked as boolean)
+                          }
+                        />
+                        <label 
+                          htmlFor={`group-${column.name}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        >
+                          {column.name}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({column.type})
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    텍스트 컬럼이 없습니다
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">합계 대상 컬럼</label>
-              <Select value={selectedValueColumn} onValueChange={setSelectedValueColumn}>
-                <SelectTrigger>
-                  <SelectValue placeholder="합계할 컬럼 선택 (선택사항)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="count_only">건수만 계산</SelectItem>
-                  {numericColumns.map((column) => (
-                    <SelectItem key={column.name} value={column.name}>
-                      {column.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* 합계 대상 컬럼 선택 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">합계 대상 컬럼 (선택사항)</label>
+                <Badge variant="outline" className="text-xs">
+                  {selectedValueColumns.length}개 선택됨
+                </Badge>
+              </div>
+              <div className="border rounded-lg p-3 max-h-40 overflow-y-auto">
+                {numericColumns.length > 0 ? (
+                  <div className="space-y-2">
+                    {numericColumns.map((column) => (
+                      <div key={column.name} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`value-${column.name}`}
+                          checked={selectedValueColumns.includes(column.name)}
+                          onCheckedChange={(checked) => 
+                            handleValueColumnChange(column.name, checked as boolean)
+                          }
+                        />
+                        <label 
+                          htmlFor={`value-${column.name}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        >
+                          {column.name}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({column.type})
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    숫자 컬럼이 없습니다
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
 
-            <div className="flex items-end">
-              <Button 
-                onClick={calculateSummary}
-                disabled={isCalculating || !selectedGroupColumn}
-                className="w-full bg-gradient-primary shadow-glow"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isCalculating ? 'animate-spin' : ''}`} />
-                {isCalculating ? '계산 중...' : '집계 실행'}
-              </Button>
+          {/* 실행 버튼 */}
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {selectedGroupColumns.length > 0 && (
+                <span>
+                  📊 <strong>{selectedGroupColumns.join(' + ')}</strong>별로 분류
+                  {selectedValueColumns.length > 0 && (
+                    <span>, <strong>{selectedValueColumns.join(' + ')}</strong> 집계</span>
+                  )}
+                </span>
+              )}
             </div>
+            <Button 
+              onClick={calculateSummary}
+              disabled={isCalculating || selectedGroupColumns.length === 0}
+              className="bg-gradient-primary shadow-glow"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isCalculating ? 'animate-spin' : ''}`} />
+              {isCalculating ? '계산 중...' : '집계 실행'}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -268,38 +389,55 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
                       <TableRow>
                         <TableHead>항목</TableHead>
                         <TableHead className="text-right">건수</TableHead>
-                        {selectedValueColumn && selectedValueColumn !== 'count_only' && (
-                          <>
-                            <TableHead className="text-right">합계</TableHead>
-                            <TableHead className="text-right">평균</TableHead>
-                          </>
-                        )}
+                        {selectedValueColumns.map(col => (
+                          <TableHead key={`${col}_sum`} className="text-right">
+                            {col} 합계
+                          </TableHead>
+                        ))}
+                        {selectedValueColumns.map(col => (
+                          <TableHead key={`${col}_avg`} className="text-right">
+                            {col} 평균
+                          </TableHead>
+                        ))}
                         <TableHead className="text-right">비율</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {summaryData.values.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{item.category}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="space-y-1">
+                              <div>{item.category}</div>
+                              {item.groupDetails && item.groupDetails.length > 1 && (
+                                <div className="text-xs text-muted-foreground">
+                                  {item.groupDetails.map((detail: any, i: number) => (
+                                    <div key={i}>
+                                      {detail.column}: {detail.value}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             <Badge variant="outline">{item.count.toLocaleString()}</Badge>
                           </TableCell>
-                          {selectedValueColumn && selectedValueColumn !== 'count_only' && (
-                            <>
-                              <TableCell className="text-right font-mono">
-                                {item.sum.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {item.avg.toFixed(2)}
-                              </TableCell>
-                            </>
-                          )}
+                          {selectedValueColumns.map(col => (
+                            <TableCell key={`${col}_sum`} className="text-right font-mono">
+                              {item[`${col}_sum`]?.toLocaleString() || '0'}
+                            </TableCell>
+                          ))}
+                          {selectedValueColumns.map(col => (
+                            <TableCell key={`${col}_avg`} className="text-right font-mono">
+                              {item[`${col}_avg`]?.toFixed(2) || '0.00'}
+                            </TableCell>
+                          ))}
                           <TableCell className="text-right">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-muted rounded-full h-2">
                                 <div 
                                   className="bg-gradient-primary h-2 rounded-full"
-                                  style={{ width: `${item.percentage}%` }}
+                                  style={{ width: `${Math.min(item.percentage, 100)}%` }}
                                 />
                               </div>
                               <span className="text-sm font-mono">
@@ -320,17 +458,17 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
             <ChartVisualization 
               data={summaryData.values.map(item => ({
                 name: item.category,
-                value: selectedValueColumn && selectedValueColumn !== 'count_only' ? item.sum : item.count,
+                value: selectedValueColumns.length > 0 ? item.sum : item.count,
                 count: item.count,
                 avg: item.avg,
                 percentage: item.percentage
               }))}
-              title={`${summaryData.groupBy}별 ${selectedValueColumn && selectedValueColumn !== 'count_only' ? '합계' : '건수'} 분포`}
+              title={`${summaryData.groupBy}별 ${selectedValueColumns.length > 0 ? `${selectedValueColumns[0]} 합계` : '건수'} 분포`}
             />
           </TabsContent>
 
           <TabsContent value="statistics">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card className="shadow-card">
                 <CardContent className="p-6">
                   <div className="text-center">
@@ -349,12 +487,31 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
                 </CardContent>
               </Card>
 
-              {selectedValueColumn && selectedValueColumn !== 'count_only' && (
-                <Card className="shadow-card">
+              {selectedValueColumns.map(col => {
+                const columnTotal = summaryData.values.reduce((sum, item) => sum + (item[`${col}_sum`] || 0), 0);
+                return (
+                  <Card key={col} className="shadow-card">
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">{columnTotal.toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">{col} 총합</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {selectedGroupColumns.length > 1 && (
+                <Card className="shadow-card lg:col-span-full">
                   <CardContent className="p-6">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{totalSum.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">총 합계</div>
+                      <div className="text-lg font-bold text-primary mb-2">다중 그룹 분석</div>
+                      <div className="text-sm text-muted-foreground">
+                        <strong>{selectedGroupColumns.join(' × ')}</strong>로 교차 분석
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {selectedGroupColumns.length}개 차원으로 데이터를 분류하여 세밀한 분석 제공
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
