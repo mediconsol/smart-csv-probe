@@ -149,7 +149,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 page-transition">
         {!data ? (
           /* 초기 화면 */
           <div className="max-w-4xl mx-auto">
@@ -168,9 +168,9 @@ const Index = () => {
 
             {/* 기능 소개 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <Card className="shadow-card hover:shadow-glow transition-all duration-300">
+              <Card className="shadow-card card-hover fade-in">
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-data flex items-center justify-center">
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-data flex items-center justify-center parallax-slow">
                     <FileText className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="font-semibold mb-2">의료 데이터 전문 분석</h3>
@@ -180,9 +180,9 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-card hover:shadow-glow transition-all duration-300">
+              <Card className="shadow-card card-hover fade-in" style={{animationDelay: '0.2s'}}>
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-chart flex items-center justify-center">
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-chart flex items-center justify-center parallax-slow">
                     <BarChart3 className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="font-semibold mb-2">직관적 시각화</h3>
@@ -192,9 +192,9 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-card hover:shadow-glow transition-all duration-300">
+              <Card className="shadow-card card-hover fade-in" style={{animationDelay: '0.4s'}}>
                 <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center parallax-slow">
                     <Search className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="font-semibold mb-2">고급 분석 도구</h3>

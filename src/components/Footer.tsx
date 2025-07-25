@@ -27,7 +27,7 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-1">
                 <Mail className="w-4 h-4" />
-                <span>contact@mediconsol.co.kr</span>
+                <span>admin@mediconsol.com</span>
               </div>
             </div>
           </div>
@@ -75,19 +75,7 @@ export function Footer() {
               <span>|</span>
               <span>mediconsol.co.kr</span>
             </div>
-            <div className="flex items-center gap-4">
-              <button className="hover:text-foreground transition-colors">
-                개인정보처리방침
-              </button>
-              <span>|</span>
-              <button className="hover:text-foreground transition-colors">
-                이용약관
-              </button>
-              <span>|</span>
-              <button className="hover:text-foreground transition-colors">
-                고객지원
-              </button>
-            </div>
+ 
           </div>
         </div>
 
