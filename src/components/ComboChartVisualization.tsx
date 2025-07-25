@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ComposedChart, 
   Bar, 
@@ -13,7 +14,7 @@ import {
   ResponsiveContainer,
   ReferenceLine 
 } from 'recharts';
-import { TrendingUp, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, BarChart3, Activity, Settings } from 'lucide-react';
 
 interface ComboChartData {
   name: string;
@@ -31,6 +32,11 @@ export function ComboChartVisualization({
   title = "콤보 차트", 
   valueColumns 
 }: ComboChartVisualizationProps) {
+  
+  // 시각화 옵션 상태
+  const [showSum, setShowSum] = useState(true);
+  const [showAvg, setShowAvg] = useState(true);
+  const [showReferenceLine, setShowReferenceLine] = useState(true);
   
   // 데이터가 없거나 컬럼이 2개 미만인 경우
   if (!data || data.length === 0 || valueColumns.length < 2) {
@@ -153,7 +159,7 @@ export function ComboChartVisualization({
 
   return (
     <div className="space-y-6">
-      {/* 헤더 정보 */}
+      {/* 헤더 정보 및 설정 */}
       <Card className="shadow-card">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -162,25 +168,76 @@ export function ComboChartVisualization({
               {title}
             </CardTitle>
             <div className="flex gap-2">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <BarChart3 className="w-3 h-3" />
-                막대형: 합계
-              </Badge>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                선형: 평균
-              </Badge>
+              {showSum && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <BarChart3 className="w-3 h-3" />
+                  막대형: 합계
+                </Badge>
+              )}
+              {showAvg && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  선형: 평균
+                </Badge>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-muted-foreground mb-4">
-            📊 <strong>{valueColumns.join(', ')}</strong>의 합계(막대)와 평균(선형)을 함께 표시합니다.
-            {data.length > 15 && (
-              <span className="block mt-1">
-                ⚡ 성능을 위해 상위 15개 항목만 표시됩니다.
-              </span>
-            )}
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1">
+              <div className="text-sm text-muted-foreground mb-4">
+                📊 <strong>{valueColumns.join(', ')}</strong>의 선택한 항목을 함께 표시합니다.
+                {data.length > 15 && (
+                  <span className="block mt-1">
+                    ⚡ 성능을 위해 상위 15개 항목만 표시됩니다.
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* 시각화 옵션 설정 */}
+            <div className="min-w-[200px]">
+              <div className="flex items-center gap-2 mb-3">
+                <Settings className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">시각화 옵션</span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="show-sum"
+                    checked={showSum}
+                    onCheckedChange={(checked) => setShowSum(checked === true)}
+                  />
+                  <label htmlFor="show-sum" className="text-sm cursor-pointer flex items-center gap-1">
+                    <BarChart3 className="w-3 h-3" />
+                    합계 (막대형)
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="show-avg"
+                    checked={showAvg}
+                    onCheckedChange={(checked) => setShowAvg(checked === true)}
+                  />
+                  <label htmlFor="show-avg" className="text-sm cursor-pointer flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    평균 (선형)
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="show-reference"
+                    checked={showReferenceLine}
+                    onCheckedChange={(checked) => setShowReferenceLine(checked === true)}
+                    disabled={!showAvg}
+                  />
+                  <label htmlFor="show-reference" className="text-sm cursor-pointer">
+                    기준선 표시
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -191,7 +248,18 @@ export function ComboChartVisualization({
           <CardTitle className="text-lg">📈 콤보 차트 시각화</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="w-full" style={{ height: '500px' }}>
+          {!showSum && !showAvg ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Activity className="w-16 h-16 text-muted-foreground/30 mb-4" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+                시각화 옵션을 선택해주세요
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                합계 또는 평균 중 하나 이상을 선택하여 차트를 표시하세요.
+              </p>
+            </div>
+          ) : (
+            <div className="w-full" style={{ height: '500px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}
@@ -206,18 +274,23 @@ export function ComboChartVisualization({
                   fontSize={12}
                   interval={0}
                 />
-                <YAxis 
-                  yAxisId="bar"
-                  orientation="left"
-                  fontSize={12}
-                  tickFormatter={(value) => value.toLocaleString()}
-                />
-                <YAxis 
-                  yAxisId="line"
-                  orientation="right"
-                  fontSize={12}
-                  tickFormatter={(value) => value.toLocaleString()}
-                />
+                {/* Y축 설정 - 옵션에 따라 동적 조정 */}
+                {showSum && (
+                  <YAxis 
+                    yAxisId="bar"
+                    orientation="left"
+                    fontSize={12}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                )}
+                {showAvg && (
+                  <YAxis 
+                    yAxisId="line"
+                    orientation={showSum ? "right" : "left"}
+                    fontSize={12}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                )}
                 
                 <Tooltip content={<CustomTooltip />} />
                 <Legend 
@@ -225,8 +298,8 @@ export function ComboChartVisualization({
                   iconType="rect"
                 />
 
-                {/* 막대형 차트 (선택된 합계 컬럼만) */}
-                {valueColumns.map((column, index) => {
+                {/* 막대형 차트 (옵션에 따라 표시) */}
+                {showSum && valueColumns.map((column, index) => {
                   // 해당 컬럼의 데이터가 실제로 있는지 확인
                   const hasData = chartData.some(item => item[`${column}_합계`] !== undefined && item[`${column}_합계`] > 0);
                   if (!hasData) return null;
@@ -244,8 +317,8 @@ export function ComboChartVisualization({
                   );
                 })}
 
-                {/* 선형 차트 (선택된 평균 컬럼만) */}
-                {valueColumns.map((column, index) => {
+                {/* 선형 차트 (옵션에 따라 표시) */}
+                {showAvg && valueColumns.map((column, index) => {
                   // 해당 컬럼의 데이터가 실제로 있는지 확인
                   const hasData = chartData.some(item => item[`${column}_평균`] !== undefined && item[`${column}_평균`] > 0);
                   if (!hasData) return null;
@@ -265,8 +338,8 @@ export function ComboChartVisualization({
                   );
                 })}
 
-                {/* 평균 기준선 (선택된 컬럼만) */}
-                {stats && stats.map((stat, index) => {
+                {/* 평균 기준선 (옵션에 따라 표시) */}
+                {showAvg && showReferenceLine && stats && stats.map((stat, index) => {
                   const avgValue = Number(stat.avg);
                   if (avgValue <= 0) return null;
                   
@@ -278,13 +351,14 @@ export function ComboChartVisualization({
                       stroke={colors[(index * 2 + 1) % colors.length]}
                       strokeDasharray="5 5"
                       strokeOpacity={0.5}
-                      label={{ value: `${stat.column} 전체평균`, position: "topRight", fontSize: 10 }}
+                      label={{ value: `${stat.column} 전체평균`, position: "top", fontSize: 10 }}
                     />
                   );
                 })}
               </ComposedChart>
             </ResponsiveContainer>
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
