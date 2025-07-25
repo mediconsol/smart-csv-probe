@@ -60,50 +60,61 @@ export function ComboChartVisualization({
     );
   }
 
-  // 통계 계산
+  // 통계 계산 (선택된 컬럼만)
   const stats = useMemo(() => {
     if (data.length === 0) return null;
 
     const columnStats = valueColumns.map(column => {
-      const values = data.map(item => {
-        const sumKey = `${column}_sum`;
-        const avgKey = `${column}_avg`;
-        return Number(item[sumKey] || item[column] || 0);
-      });
+      const sumKey = `${column}_sum`;
+      const avgKey = `${column}_avg`;
+      
+      // 해당 컬럼의 합계 데이터만 수집
+      const sumValues = data
+        .filter(item => item[sumKey] !== undefined)
+        .map(item => Number(item[sumKey] || 0));
+      
+      // 해당 컬럼의 평균 데이터만 수집  
+      const avgValues = data
+        .filter(item => item[avgKey] !== undefined)
+        .map(item => Number(item[avgKey] || 0));
 
-      const sum = values.reduce((acc, val) => acc + val, 0);
-      const avg = sum / values.length;
-      const max = Math.max(...values);
-      const min = Math.min(...values);
+      const totalSum = sumValues.reduce((acc, val) => acc + val, 0);
+      const overallAvg = avgValues.length > 0 ? avgValues.reduce((acc, val) => acc + val, 0) / avgValues.length : 0;
+      const maxSum = sumValues.length > 0 ? Math.max(...sumValues) : 0;
+      const minSum = sumValues.length > 0 ? Math.min(...sumValues) : 0;
 
       return {
         column,
-        sum: sum.toFixed(0),
-        avg: avg.toFixed(2),
-        max: max.toFixed(0),
-        min: min.toFixed(0)
+        sum: totalSum.toFixed(0),
+        avg: overallAvg.toFixed(2),
+        max: maxSum.toFixed(0),
+        min: minSum.toFixed(0)
       };
     });
 
     return columnStats;
   }, [data, valueColumns]);
 
-  // 차트 데이터 준비
+  // 차트 데이터 준비 (선택된 컬럼만)
   const chartData = useMemo(() => {
     return data.slice(0, 15).map(item => {
       const chartItem: any = {
         name: String(item.name || item.category || '미분류')
       };
 
+      // 선택된 값 컬럼만 처리
       valueColumns.forEach(column => {
         const sumKey = `${column}_sum`;
         const avgKey = `${column}_avg`;
         
-        // 합계 데이터 (막대형으로 표시)
-        chartItem[`${column}_합계`] = Number(item[sumKey] || item[column] || 0);
-        
-        // 평균 데이터 (선형으로 표시)
-        chartItem[`${column}_평균`] = Number(item[avgKey] || 0);
+        // 해당 컬럼의 데이터가 있는지 확인
+        if (item[sumKey] !== undefined || item[avgKey] !== undefined) {
+          // 합계 데이터 (막대형으로 표시)
+          chartItem[`${column}_합계`] = Number(item[sumKey] || 0);
+          
+          // 평균 데이터 (선형으로 표시)
+          chartItem[`${column}_평균`] = Number(item[avgKey] || 0);
+        }
       });
 
       return chartItem;
@@ -214,96 +225,122 @@ export function ComboChartVisualization({
                   iconType="rect"
                 />
 
-                {/* 막대형 차트 (합계) */}
-                {valueColumns.map((column, index) => (
-                  <Bar
-                    key={`${column}_합계`}
-                    yAxisId="bar"
-                    dataKey={`${column}_합계`}
-                    fill={colors[index * 2 % colors.length]}
-                    name={`${column} 합계`}
-                    radius={[4, 4, 0, 0]}
-                    fillOpacity={0.8}
-                  />
-                ))}
+                {/* 막대형 차트 (선택된 합계 컬럼만) */}
+                {valueColumns.map((column, index) => {
+                  // 해당 컬럼의 데이터가 실제로 있는지 확인
+                  const hasData = chartData.some(item => item[`${column}_합계`] !== undefined && item[`${column}_합계`] > 0);
+                  if (!hasData) return null;
+                  
+                  return (
+                    <Bar
+                      key={`${column}_합계`}
+                      yAxisId="bar"
+                      dataKey={`${column}_합계`}
+                      fill={colors[index * 2 % colors.length]}
+                      name={`${column} 합계`}
+                      radius={[4, 4, 0, 0]}
+                      fillOpacity={0.8}
+                    />
+                  );
+                })}
 
-                {/* 선형 차트 (평균) */}
-                {valueColumns.map((column, index) => (
-                  <Line
-                    key={`${column}_평균`}
-                    yAxisId="line"
-                    type="monotone"
-                    dataKey={`${column}_평균`}
-                    stroke={colors[(index * 2 + 1) % colors.length]}
-                    strokeWidth={3}
-                    name={`${column} 평균`}
-                    dot={{ fill: colors[(index * 2 + 1) % colors.length], strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: colors[(index * 2 + 1) % colors.length], strokeWidth: 2 }}
-                  />
-                ))}
+                {/* 선형 차트 (선택된 평균 컬럼만) */}
+                {valueColumns.map((column, index) => {
+                  // 해당 컬럼의 데이터가 실제로 있는지 확인
+                  const hasData = chartData.some(item => item[`${column}_평균`] !== undefined && item[`${column}_평균`] > 0);
+                  if (!hasData) return null;
+                  
+                  return (
+                    <Line
+                      key={`${column}_평균`}
+                      yAxisId="line"
+                      type="monotone"
+                      dataKey={`${column}_평균`}
+                      stroke={colors[(index * 2 + 1) % colors.length]}
+                      strokeWidth={3}
+                      name={`${column} 평균`}
+                      dot={{ fill: colors[(index * 2 + 1) % colors.length], strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: colors[(index * 2 + 1) % colors.length], strokeWidth: 2 }}
+                    />
+                  );
+                })}
 
-                {/* 평균 기준선 */}
-                {stats && stats.map((stat, index) => (
-                  <ReferenceLine
-                    key={`avg-line-${stat.column}`}
-                    yAxisId="line"
-                    y={Number(stat.avg)}
-                    stroke={colors[(index * 2 + 1) % colors.length]}
-                    strokeDasharray="5 5"
-                    strokeOpacity={0.5}
-                    label={{ value: `${stat.column} 전체평균`, position: "topRight", fontSize: 10 }}
-                  />
-                ))}
+                {/* 평균 기준선 (선택된 컬럼만) */}
+                {stats && stats.map((stat, index) => {
+                  const avgValue = Number(stat.avg);
+                  if (avgValue <= 0) return null;
+                  
+                  return (
+                    <ReferenceLine
+                      key={`avg-line-${stat.column}`}
+                      yAxisId="line"
+                      y={avgValue}
+                      stroke={colors[(index * 2 + 1) % colors.length]}
+                      strokeDasharray="5 5"
+                      strokeOpacity={0.5}
+                      label={{ value: `${stat.column} 전체평균`, position: "topRight", fontSize: 10 }}
+                    />
+                  );
+                })}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
 
-      {/* 통계 요약 */}
+      {/* 통계 요약 (선택된 컬럼만) */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {stats.map((stat, index) => (
-            <Card key={stat.column} className="shadow-card">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <div 
-                    className="w-4 h-4 rounded" 
-                    style={{ backgroundColor: colors[index * 2 % colors.length] }}
-                  />
-                  {stat.column} 통계
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">
-                      {stat.sum}
+          {stats
+            .filter(stat => {
+              // 실제 데이터가 있는 컬럼만 표시
+              const hasData = Number(stat.sum) > 0 || Number(stat.avg) > 0;
+              return hasData;
+            })
+            .map((stat, index) => (
+              <Card key={stat.column} className="shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded" 
+                      style={{ backgroundColor: colors[index * 2 % colors.length] }}
+                    />
+                    {stat.column} 통계
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      선택됨
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {stat.sum}
+                      </div>
+                      <div className="text-xs text-muted-foreground">총 합계</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">총 합계</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {stat.avg}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {stat.avg}
+                      </div>
+                      <div className="text-xs text-muted-foreground">평균</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">평균</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-green-600">
-                      {stat.max}
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-green-600">
+                        {stat.max}
+                      </div>
+                      <div className="text-xs text-muted-foreground">최대값</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">최대값</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-orange-600">
-                      {stat.min}
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-orange-600">
+                        {stat.min}
+                      </div>
+                      <div className="text-xs text-muted-foreground">최소값</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">최소값</div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
         </div>
       )}
     </div>
