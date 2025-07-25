@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Play, Sparkles, Database, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AIQueryAssistant } from '@/components/AIQueryAssistant';
+import { Play, Sparkles, Database, Clock, AlertTriangle, TrendingUp, Brain, Code } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface QueryBuilderProps {
@@ -102,16 +104,37 @@ WHERE ABS(numeric_column - mean) > 2 * std;`
     onExecuteQuery(query);
   };
 
-  const handleAIAssist = () => {
+  const handleAIQueryGenerated = (generatedQuery: string) => {
+    setQuery(generatedQuery);
     toast({
-      title: "AI 도움말",
-      description: "AI가 데이터를 분석하여 유용한 쿼리를 제안합니다.",
+      title: "AI 쿼리 적용됨",
+      description: "생성된 쿼리가 편집기에 적용되었습니다.",
     });
-    // AI 분석 로직 구현
   };
 
   return (
     <div className="space-y-6">
+      {/* AI 도우미와 수동 편집 탭 */}
+      <Tabs defaultValue="ai-assistant" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="ai-assistant" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            AI 쿼리 도우미
+          </TabsTrigger>
+          <TabsTrigger value="manual" className="flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            수동 편집
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ai-assistant" className="mt-6">
+          <AIQueryAssistant 
+            columns={columns}
+            onQueryGenerated={handleAIQueryGenerated}
+          />
+        </TabsContent>
+
+        <TabsContent value="manual" className="mt-6">
       {/* 쿼리 템플릿 */}
       <Card className="shadow-card">
         <CardHeader>
@@ -182,27 +205,35 @@ WHERE ABS(numeric_column - mean) > 2 * std;`
             className="min-h-[200px] font-mono text-sm"
           />
           
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={handleExecute}
-              disabled={isExecuting}
-              className="bg-gradient-primary shadow-glow"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              {isExecuting ? '실행 중...' : '쿼리 실행'}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={handleAIAssist}
-              className="hover:bg-gradient-chart hover:text-white"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              AI 도움말
-            </Button>
+          <div className="text-sm text-muted-foreground">
+            💡 팁: 위의 AI 쿼리 도우미 탭을 이용하면 자연어로 쿼리를 생성할 수 있습니다.
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* 쿼리 실행 버튼 (공통) */}
+      {query && (
+        <Card className="shadow-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={handleExecute}
+                disabled={isExecuting}
+                className="bg-gradient-primary shadow-glow"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                {isExecuting ? '실행 중...' : '쿼리 실행'}
+              </Button>
+              
+              <div className="text-sm text-muted-foreground">
+                현재 쿼리: {query.length > 50 ? query.substring(0, 50) + '...' : query}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
