@@ -30,6 +30,19 @@ export function QueryBuilder({ columns, onExecuteQuery, isExecuting }: QueryBuil
 FROM data;`
     },
     {
+      id: 'chart_amount_sum',
+      name: '차트번호별 금액 합계',
+      icon: <TrendingUp className="w-4 h-4" />,
+      description: '차트번호별로 금액의 합계를 구합니다',
+      query: `SELECT 
+  chart_number,
+  SUM(amount) as total_amount,
+  COUNT(*) as record_count
+FROM data 
+GROUP BY chart_number 
+ORDER BY total_amount DESC;`
+    },
+    {
       id: 'top_values',
       name: '상위 값 조회',
       icon: <TrendingUp className="w-4 h-4" />,

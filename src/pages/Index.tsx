@@ -3,10 +3,11 @@ import { FileUpload } from '@/components/FileUpload';
 import { DataPreview } from '@/components/DataPreview';
 import { QueryBuilder } from '@/components/QueryBuilder';
 import { ChartVisualization } from '@/components/ChartVisualization';
+import { SummaryReport } from '@/components/SummaryReport';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Database, BarChart3, Search, FileText } from 'lucide-react';
+import { Sparkles, Database, BarChart3, Search, FileText, Calculator } from 'lucide-react';
 import { parseCSVFile, generateSampleData, executeQuery, ParsedData } from '@/utils/csvProcessor';
 import { useToast } from '@/hooks/use-toast';
 
@@ -72,6 +73,24 @@ const Index = () => {
       title: "샘플 데이터 로드",
       description: "데모용 샘플 데이터가 로드되었습니다.",
     });
+  };
+
+  const handleColumnTypeChange = (columnName: string, newType: string, convertedData?: any[]) => {
+    if (!data) return;
+
+    // 컬럼 타입 업데이트
+    const updatedColumns = data.columns.map(col => 
+      col.name === columnName ? { ...col, type: newType } : col
+    );
+
+    // 데이터 업데이트 (변환된 데이터가 있으면 사용)
+    const updatedData = {
+      ...data,
+      columns: updatedColumns,
+      rows: convertedData || data.rows
+    };
+
+    setData(updatedData);
   };
 
   const chartData = queryResult.length > 0 && queryResult[0].name ? 
@@ -167,7 +186,7 @@ const Index = () => {
         ) : (
           /* 메인 분석 화면 */
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-5 mb-8">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Database className="w-4 h-4" />
                 데이터 개요
@@ -175,6 +194,10 @@ const Index = () => {
               <TabsTrigger value="query" className="flex items-center gap-2">
                 <Search className="w-4 h-4" />
                 쿼리 분석
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                합계 보고서
               </TabsTrigger>
               <TabsTrigger value="charts" className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
@@ -192,6 +215,7 @@ const Index = () => {
                 rows={data.rows}
                 totalRows={data.totalRows}
                 fileName={fileName}
+                onColumnTypeChange={handleColumnTypeChange}
               />
             </TabsContent>
 
@@ -218,6 +242,10 @@ const Index = () => {
                   </Card>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="summary">
+              <SummaryReport data={data} />
             </TabsContent>
 
             <TabsContent value="charts">

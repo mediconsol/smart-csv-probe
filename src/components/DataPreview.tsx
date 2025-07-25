@@ -2,7 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Database, BarChart3, TrendingUp } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Database, BarChart3, TrendingUp, Settings } from 'lucide-react';
+import { ColumnManager } from './ColumnManager';
 
 interface Column {
   name: string;
@@ -15,9 +17,10 @@ interface DataPreviewProps {
   rows: Record<string, string>[];
   totalRows: number;
   fileName: string;
+  onColumnTypeChange?: (columnName: string, newType: string, convertedData?: any[]) => void;
 }
 
-export function DataPreview({ columns, rows, totalRows, fileName }: DataPreviewProps) {
+export function DataPreview({ columns, rows, totalRows, fileName, onColumnTypeChange }: DataPreviewProps) {
   const getTypeColor = (type: Column['type']) => {
     switch (type) {
       case 'number': return 'bg-data-blue text-white';
@@ -62,73 +65,103 @@ export function DataPreview({ columns, rows, totalRows, fileName }: DataPreviewP
         </CardContent>
       </Card>
 
-      {/* 컬럼 정보 */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>컬럼 분석</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {columns.map((column, index) => (
-              <div key={index} className="p-4 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium truncate">{column.name}</h4>
-                  <Badge className={getTypeColor(column.type)}>
-                    {getTypeIcon(column.type)}
-                    <span className="ml-1">{column.type}</span>
-                  </Badge>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <div className="font-medium mb-1">샘플 값:</div>
-                  {column.samples.slice(0, 3).map((sample, idx) => (
-                    <div key={idx} className="truncate text-xs bg-muted/30 px-2 py-1 rounded mb-1">
-                      {sample || '(빈 값)'}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* 탭 구조로 변경 */}
+      <Tabs defaultValue="analysis" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="analysis">
+            <Database className="w-4 h-4 mr-2" />
+            컬럼 분석
+          </TabsTrigger>
+          <TabsTrigger value="management">
+            <Settings className="w-4 h-4 mr-2" />
+            컬럼 관리
+          </TabsTrigger>
+          <TabsTrigger value="preview">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            데이터 미리보기
+          </TabsTrigger>
+        </TabsList>
 
-      {/* 데이터 미리보기 */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>데이터 미리보기 (처음 10행)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="w-full">
-            <div className="min-w-[800px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {columns.map((column, index) => (
-                      <TableHead key={index} className="font-semibold">
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(column.type)}
-                          {column.name}
+        <TabsContent value="analysis">
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>컬럼 분석</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {columns.map((column, index) => (
+                  <div key={index} className="p-4 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium truncate">{column.name}</h4>
+                      <Badge className={getTypeColor(column.type)}>
+                        {getTypeIcon(column.type)}
+                        <span className="ml-1">{column.type}</span>
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="font-medium mb-1">샘플 값:</div>
+                      {column.samples.slice(0, 3).map((sample, idx) => (
+                        <div key={idx} className="truncate text-xs bg-muted/30 px-2 py-1 rounded mb-1">
+                          {sample || '(빈 값)'}
                         </div>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.slice(0, 10).map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {columns.map((column, colIndex) => (
-                        <TableCell key={colIndex} className="max-w-[200px] truncate">
-                          {row[column.name] || '-'}
-                        </TableCell>
                       ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="management">
+          {onColumnTypeChange && (
+            <ColumnManager 
+              columns={columns}
+              onColumnTypeChange={onColumnTypeChange}
+              sampleData={rows}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="preview">
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>데이터 미리보기 (처음 10행)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="w-full">
+                <div className="min-w-[800px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {columns.map((column, index) => (
+                          <TableHead key={index} className="font-semibold">
+                            <div className="flex items-center gap-2">
+                              {getTypeIcon(column.type)}
+                              {column.name}
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.slice(0, 10).map((row, rowIndex) => (
+                        <TableRow key={rowIndex}>
+                          {columns.map((column, colIndex) => (
+                            <TableCell key={colIndex} className="max-w-[200px] truncate">
+                              {row[column.name] || '-'}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
