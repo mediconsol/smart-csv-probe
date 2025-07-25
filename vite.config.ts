@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: process.env.VERCEL ? '/' : (mode === 'production' ? '/smart-csv-probe/' : '/'),
+  base: '/',
   server: {
     host: "::",
     port: 8080,
