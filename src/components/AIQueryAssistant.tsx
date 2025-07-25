@@ -34,6 +34,11 @@ export function AIQueryAssistant({ columns, onQueryGenerated }: AIQueryAssistant
     try {
       const API_KEY = 'AIzaSyB5WT1EgNn-1kAXft5uO6SWK5mjTyumztc';
       
+      // API 키 확인
+      if (!API_KEY || API_KEY.length < 10) {
+        throw new Error('API 키가 설정되지 않았습니다.');
+      }
+      
       // 컬럼 정보를 문자열로 변환
       const columnInfo = columns.map(col => `${col.name} (${col.type})`).join(', ');
       
@@ -59,7 +64,7 @@ ${userRequest}
 SQL 쿼리만 반환하세요. 설명이나 다른 텍스트는 포함하지 마세요.
 `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,21 +74,37 @@ SQL 쿼리만 반환하세요. 설명이나 다른 텍스트는 포함하지 마
             parts: [{
               text: prompt
             }]
-          }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+          }
         })
       });
 
       if (!response.ok) {
-        throw new Error(`AI API 오류: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Response Error:', response.status, errorText);
+        throw new Error(`AI API 오류: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('API Response:', data);
       
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts) {
         let query = data.candidates[0].content.parts[0].text.trim();
         
         // SQL 쿼리에서 마크다운 코드 블록 제거
         query = query.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        // 추가 정리
+        query = query.replace(/^sql\n/i, '').trim();
+        
+        if (!query) {
+          throw new Error('생성된 쿼리가 비어있습니다.');
+        }
         
         setGeneratedQuery(query);
         
@@ -92,21 +113,65 @@ SQL 쿼리만 반환하세요. 설명이나 다른 텍스트는 포함하지 마
           description: "생성된 쿼리를 검토한 후 사용해주세요.",
         });
       } else {
-        throw new Error('AI 응답 형식이 올바르지 않습니다.');
+        console.error('Unexpected API response structure:', data);
+        throw new Error('AI 응답 형식이 올바르지 않습니다. 다시 시도해주세요.');
       }
 
     } catch (error) {
       console.error('AI 쿼리 생성 오류:', error);
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
       
-      toast({
-        title: "AI 쿼리 생성 실패",
-        description: "다시 시도해주시거나 수동으로 쿼리를 작성해주세요.",
-        variant: "destructive"
-      });
+      // Fallback: 기본 쿼리 템플릿 제공
+      const fallbackQuery = generateFallbackQuery(userRequest, columns);
+      if (fallbackQuery) {
+        setGeneratedQuery(fallbackQuery);
+        toast({
+          title: "기본 쿼리 템플릿 제공",
+          description: "AI 생성에 실패하여 기본 템플릿을 제공합니다. 수정하여 사용해주세요.",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "AI 쿼리 생성 실패", 
+          description: "다시 시도해주시거나 수동으로 쿼리를 작성해주세요.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Fallback 쿼리 생성 함수
+  const generateFallbackQuery = (request: string, columns: Array<{name: string; type: string}>): string => {
+    const numericColumns = columns.filter(col => col.type === 'number' || col.type === 'numeric');
+    const textColumns = columns.filter(col => col.type === 'string' || col.type === 'text');
+    
+    // 키워드 기반 간단한 쿼리 생성
+    const lowerRequest = request.toLowerCase();
+    
+    if (lowerRequest.includes('평균') || lowerRequest.includes('avg')) {
+      if (numericColumns.length > 0) {
+        return `SELECT AVG(${numericColumns[0].name}) as average_value FROM data;`;
+      }
+    }
+    
+    if (lowerRequest.includes('개수') || lowerRequest.includes('count') || lowerRequest.includes('건수')) {
+      return `SELECT COUNT(*) as total_count FROM data;`;
+    }
+    
+    if (lowerRequest.includes('그룹') || lowerRequest.includes('분류') || lowerRequest.includes('별')) {
+      if (textColumns.length > 0) {
+        return `SELECT ${textColumns[0].name}, COUNT(*) as count FROM data GROUP BY ${textColumns[0].name} ORDER BY count DESC;`;
+      }
+    }
+    
+    if (lowerRequest.includes('상위') || lowerRequest.includes('top')) {
+      return `SELECT * FROM data LIMIT 10;`;
+    }
+    
+    // 기본 조회 쿼리
+    return `SELECT * FROM data LIMIT 100;`;
   };
 
   const copyQuery = () => {
