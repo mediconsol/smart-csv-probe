@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChartVisualization } from '@/components/ChartVisualization';
-import { BarChart3, Download, RefreshCw, Calculator, PieChart, TrendingUp } from 'lucide-react';
+import { ComboChartVisualization } from '@/components/ComboChartVisualization';
+import { BarChart3, Download, RefreshCw, Calculator, PieChart, TrendingUp, Activity } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface SummaryReportProps {
@@ -354,7 +355,7 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
 
       {summaryData && (
         <Tabs defaultValue="table" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full ${selectedValueColumns.length >= 2 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="table">
               <BarChart3 className="w-4 h-4 mr-2" />
               테이블 보기
@@ -363,6 +364,12 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
               <PieChart className="w-4 h-4 mr-2" />
               차트 보기
             </TabsTrigger>
+            {selectedValueColumns.length >= 2 && (
+              <TabsTrigger value="combo">
+                <Activity className="w-4 h-4 mr-2" />
+                콤보 차트
+              </TabsTrigger>
+            )}
             <TabsTrigger value="statistics">
               <TrendingUp className="w-4 h-4 mr-2" />
               통계 요약
@@ -466,6 +473,19 @@ export function SummaryReport({ data, onSummaryDataChange }: SummaryReportProps)
               title={`${summaryData.groupBy}별 ${selectedValueColumns.length > 0 ? `${selectedValueColumns[0]} 합계` : '건수'} 분포`}
             />
           </TabsContent>
+
+          {selectedValueColumns.length >= 2 && (
+            <TabsContent value="combo">
+              <ComboChartVisualization
+                data={summaryData.values.map(item => ({
+                  name: item.category,
+                  ...item
+                }))}
+                title={`${summaryData.groupBy}별 다중 컬럼 콤보 분석`}
+                valueColumns={selectedValueColumns}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="statistics">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
